@@ -1,5 +1,7 @@
 import datetime as dt
 
+from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
+                                  UpdateView)
 from blog.models import Category, Post
 from django.shortcuts import get_object_or_404, render
 
@@ -19,6 +21,38 @@ def index(request):
     return render(request, 'blog/index.html', {
         'post_list': core_filter(Post.objects.all())[:LAST_POSTS],
     })
+
+
+class ProfileListView(ListView):
+    pass
+
+
+class PostCreateView(CreateView, ...):
+    pass
+
+
+class PostEditView(CreateView, ...):
+    pass
+
+
+class PostDeleteView(DeleteView, ...):
+    pass
+
+
+class PostUpdateView(UpdateView, ...):
+    pass
+
+
+class ProfiletUpdateView(UpdateView, ...):
+    pass
+
+
+class CommentUpdateView(UpdateView, ..., ...):
+    pass
+
+
+class CommentDeleteView(DeleteView, ..., ...):
+    pass
 
 
 def post_detail(request, post_id):
