@@ -1,6 +1,7 @@
-from core.models import PublishedModel
 from django.contrib.auth import get_user_model
 from django.db import models
+
+from core.models import PublishedModel
 
 User = get_user_model()
 
@@ -46,6 +47,7 @@ class Location(PublishedModel):
 
 
 class Post(PublishedModel):
+    #image = models.ImageField('Фото', upload_to='post_images', blank=True)
     title = models.CharField(
         max_length=256,
         verbose_name='Заголовок'
@@ -89,3 +91,15 @@ class Post(PublishedModel):
 
     def __str__(self) -> str:
         return self.title
+
+
+class Comment(PublishedModel):
+    text = models.TextField(
+        'Комментарий пользователя',
+    )
+
+    class Meta:
+        ordering = ('created_at',)
+
+    def __str__(self) -> str:
+        return self.text
