@@ -43,7 +43,10 @@ urlpatterns = [
 
     path('posts/create/', views.PostCreateView.as_view(), name='create_post'),
 
-    path('posts/<int:post_id>/', views.post_detail, name='post_detail'),
+    path('posts/<int:pk>/',
+         views.PostDetailView.as_view(),
+         name='post_detail'
+         ),
 
     path('category/<slug:slug>/',
          views.CategoryPostsView.as_view(),

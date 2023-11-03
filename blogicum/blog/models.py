@@ -47,7 +47,7 @@ class Location(PublishedModel):
 
 
 class Post(PublishedModel):
-    #image = models.ImageField('Фото', upload_to='post_images', blank=True)
+    image = models.ImageField('Фото', upload_to='post_images', blank=True)
     title = models.CharField(
         max_length=256,
         verbose_name='Заголовок'
@@ -96,6 +96,19 @@ class Post(PublishedModel):
 class Comment(PublishedModel):
     text = models.TextField(
         'Комментарий пользователя',
+    )
+    post = models.ForeignKey(
+        Post,
+        on_delete=models.CASCADE,
+        related_name='comments',
+        null=True
+    )
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        verbose_name='Автор публикации',
+        related_name='comments',
+        null=True
     )
 
     class Meta:

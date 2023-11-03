@@ -1,12 +1,25 @@
 import datetime as dt
-#from django.urls import reverse_lazy
-#from blog.forms import CommentForm, PostForm, UserForm
+from django.contrib.auth.decorators import login_required
+from django.urls import reverse_lazy, reverse
+from blog.forms import CommentForm, PostForm, UserForm
 from blog.models import Category, Post, User, Comment
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect
 from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
                                   UpdateView)
 
 LAST_POSTS = 5
+
+
+@login_required
+def add_comment(request, pk):
+    comment = get_object_or_404(Post, pk=pk)
+    form = CommentForm(request.POST)
+    if form.is_valid():
+        comment = form.save(commit=False)
+        comment.author = request.user
+        comment.birthday = comment
+        comment.save()
+    return redirect('blog:post_detail', pk=pk)
 
 
 def core_filter(posts_object):
@@ -25,8 +38,7 @@ class IndexListView(ListView):
     paginate_by = 10
 
     def get_queryset(self):
-        # Выполняем фильтрацию и сортировку данных, как в вашей функции
-        return core_filter(Post.objects.all())[:LAST_POSTS]
+        return core_filter(Post.objects.all())
 
 
 class ProfileListView(ListView):
@@ -43,15 +55,23 @@ class ProfileListView(ListView):
 
 
 class ProfileUpdateView(UpdateView):
-    #model = User
-    #form_class = UserForm
-    #template_name = 'blog/user.html'
-    #success_url = reverse_lazy('blog:index')
-    pass
+    model = User
+    form_class = UserForm
+    template_name = 'blog/user.html'
+    success_url = reverse_lazy('blog:index')
 
 
 class PostCreateView(CreateView):
-    pass
+    model = Post
+    form_class = PostForm
+    template_name = 'blog/create.html'
+
+    def form_valid(self, form):
+        form.instance.author = self.request.user
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse('blog:profile', kwargs={'username': self.request.user})
 
 
 class PostEditView(CreateView):
@@ -74,16 +94,24 @@ class CommentDeleteView(DeleteView):
     pass
 
 
-def post_detail(request, post_id):
-    return render(request, 'blog/detail.html', {
-        'post': get_object_or_404(
-            core_filter(Post.objects.all()), id=post_id),
-    })
+class PostDetailView(DetailView):
+    model = Post
+    template_name = 'blog/detail.html'
+    ordering = ('-pub_date',)
+    paginate_by = 10
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['form'] = CommentForm()
+        context['comments'] = (
+            self.object.comments.select_related('post')
+        )
+        return context
 
 
 class CategoryPostsView(ListView):
-    template_name = 'blog/category.html'  # Указываем имя шаблона
-    context_object_name = 'post_list'  # Указываем имя переменной в контексте
+    template_name = 'blog/category.html'
+    context_object_name = 'post_list'
 
     def get_queryset(self):
         slug = self.kwargs.get('slug')
@@ -94,7 +122,3 @@ class CategoryPostsView(ListView):
         context = super().get_context_data(**kwargs)
         context['category'] = self.get_object()
         return context
-
-
-def add_comment():
-    pass
