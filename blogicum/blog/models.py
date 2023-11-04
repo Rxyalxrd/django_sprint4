@@ -7,45 +7,36 @@ User = get_user_model()
 
 
 class Category(BaseModel):
-    title = models.CharField(
-        'Заголовок',
-        max_length=256)
+    title = models.CharField('Заголовок', max_length=256)
     description = models.TextField('Описание')
     slug = models.SlugField(
         'Идентификатор',
         unique=True,
-        help_text=(
-            'Идентификатор страницы для URL; разрешены символы '
-            'латиницы, цифры, дефис и подчёркивание.'
-        )
+        help_text=('Идентификатор страницы для URL; разрешены символы '
+                   'латиницы, цифры, дефис и подчёркивание.')
     )
 
     class Meta:
         verbose_name = 'категория'
         verbose_name_plural = 'Категории'
 
-    def __str__(self) -> str:
+    def __str__(self):
         return self.title
 
 
 class Location(BaseModel):
-    name = models.CharField(
-        'Название места',
-        max_length=256
-    )
+    name = models.CharField('Название места', max_length=256)
 
     class Meta:
         verbose_name = 'местоположение'
         verbose_name_plural = 'Местоположения'
 
-    def __str__(self) -> str:
+    def __str__(self):
         return self.name
 
 
 class Post(BaseModel):
-    title = models.CharField(
-        'Заголовок',
-        max_length=256)
+    title = models.CharField('Заголовок', max_length=256)
     text = models.TextField('Текст')
     pub_date = models.DateTimeField(
         'Дата и время публикации',
@@ -53,8 +44,7 @@ class Post(BaseModel):
                    'делать отложенные публикации.')
     )
     image = models.ImageField('Изображение',
-                              upload_to='blog_images',
-                              blank=True
+                              upload_to='birthdays_images', blank=True
                               )
     author = models.ForeignKey(
         User,
@@ -84,12 +74,9 @@ class Post(BaseModel):
         ordering = ('-pub_date',)
 
     def get_absolute_url(self):
-        return reverse(
-            'blog:detail.html',
-            kwargs={'pk': self.pk}
-        )
+        return reverse('blog:detail.html', kwargs={'pk': self.pk})
 
-    def __str__(self) -> str:
+    def __str__(self):
         return self.title
 
 
@@ -112,5 +99,5 @@ class Comment(BaseModel):
     class Meta:
         ordering = ('created_at',)
 
-    def __str__(self) -> str:
+    def __str__(self):
         return self.text

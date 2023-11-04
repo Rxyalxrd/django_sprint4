@@ -1,5 +1,6 @@
-from blog import views
 from django.urls import path
+
+from blog import views
 
 app_name = 'blog'
 
@@ -12,7 +13,7 @@ urlpatterns = [
         name='post_detail'
     ),
     path(
-        'posts/<int:pk>/edit/',
+        'posts/<int:post_id>/edit/',
         views.PostUpdateView.as_view(), name='edit_post'
     ),
     path(
