@@ -213,7 +213,7 @@ class CommentUpdateView(LoginRequiredMixin, CommentMixin, UpdateView):
         return context
 
 
-class CommentDeleteView(LoginRequiredMixin, CommentMixin, DeleteView):
+class CommentDeleteView(LoginRequiredMixin, CommentMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
