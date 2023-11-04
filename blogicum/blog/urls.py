@@ -12,7 +12,7 @@ urlpatterns = [
         name='post_detail'
     ),
     path(
-        'posts/<int:post_id>/edit/',
+        'posts/<int:pk>/edit/',
         views.PostUpdateView.as_view(), name='edit_post'
     ),
     path(
