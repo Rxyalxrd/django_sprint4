@@ -13,7 +13,7 @@ from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
 @login_required
 def add_comment(request, post_id):
     comment = get_object_or_404(Post, pk=post_id)
-    form = CommentForm(request.POST)
+    form = CommentForm(request.GET)
     if form.is_valid():
         commentators = form.save(commit=False)
         commentators.author = request.user
@@ -213,7 +213,7 @@ class CommentUpdateView(LoginRequiredMixin, CommentMixin, UpdateView):
         return context
 
 
-class CommentDeleteView(LoginRequiredMixin, CommentMixin, UpdateView):
+class CommentDeleteView(LoginRequiredMixin, CommentMixin, DeleteView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
