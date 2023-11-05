@@ -9,7 +9,7 @@ from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
 
 from blog.forms import CommentForm, PostForm, UserForm
 from blog.models import Category, Comment, Post, User
-
+from django.http import Http404
 
 @login_required
 def add_comment(request, post_id):
@@ -64,74 +64,6 @@ class IndexListView(ListView):
     paginate_by = 10
 
 
-class PostDetailView(DetailView):
-    model = Post
-    template_name = 'blog/detail.html'
-    ordering = ('-pub_date',)
-    paginate_by = 10
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['form'] = CommentForm()
-        context['comments'] = (
-            self.object.comments.select_related('post')
-        )
-        return context
-
-
-class CategoryListView(ListView):
-    model = Post
-    template_name = 'blog/category.html'
-    paginate_by = 10
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['category'] = get_object_or_404(
-            Category,
-            slug=self.kwargs['category_slug'],
-            is_published=True,
-        )
-        return context
-
-    def get_queryset(self):
-        category_slug = self.kwargs.get('category_slug')
-        category = get_object_or_404(
-            Category,
-            slug=category_slug,
-            is_published=True
-        )
-
-        queryset = category.posts.filter(
-            pub_date__lt=tz.now(),
-            is_published=True,
-        ).annotate(comment_count=Count('comments')).order_by('-pub_date')
-        return queryset
-
-
-class ProfileListView(ListView):
-    model = Post
-    template_name = 'blog/profile.html'
-    ordering = 'id'
-    paginate_by = 10
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['profile'] = get_object_or_404(User, username=self.kwargs.get(
-            'username'
-        )
-        )
-        return context
-
-    def get_queryset(self):
-        author = get_object_or_404(User, username=self.kwargs.get('username'))
-        instance = author.posts.filter(
-            author__username__exact=self.kwargs.get('username')
-        ).annotate(
-            comment_count=Count('comments')
-        ).order_by('-pub_date')
-        return instance
-
-
 class ProfileUpdateView(LoginRequiredMixin, UpdateView):
     model = User
     form_class = UserForm
@@ -160,13 +92,102 @@ class PostCreateView(LoginRequiredMixin, CreateView):
     def get_success_url(self):
         return reverse_lazy(
             'blog:profile',
-            kwargs={'username': self.request.user.username}
+            kwargs={'username': self.request.user}
         )
 
     def form_valid(self, form):
-        post = form.save(commit=False)
-        post.author = self.request.user
+        form.instance.author = self.request.user
+        # Если pub_date задано в будущем, то сохраняем пост как отложенный
+        if form.instance.pub_date and form.instance.pub_date > tz.now():
+            form.instance.is_published = False
         return super().form_valid(form)
+
+
+class PostDetailView(DetailView):
+    model = Post
+    template_name = 'blog/detail.html'
+    ordering = ('-pub_date',)
+    paginate_by = 10
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['form'] = CommentForm()
+        context['comments'] = (
+            self.object.comments.select_related('author').filter(
+                post_id__is_published=True,
+                post_id__category__is_published=True,
+            )
+        )
+        return context
+    
+    def get_object(self, queryset=None):
+        obj = super().get_object(queryset)
+        if not obj.is_published and obj.author != self.request.user:
+            raise Http404("Страница не найдена")
+        return obj
+
+
+class CategoryListView(ListView):
+    model = Post
+    template_name = 'blog/category.html'
+    paginate_by = 10
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['category'] = get_object_or_404(
+            Category,
+            slug=self.kwargs['category_slug'],
+            is_published=True,
+        )
+        return context
+
+    def get_queryset(self):
+        category_slug = self.kwargs.get('category_slug')
+        category = get_object_or_404(
+            Category,
+            slug=category_slug,
+            is_published=True
+        )
+        queryset = category.posts.filter(
+            pub_date__lt=tz.now(),
+            is_published=True,
+        ).annotate(comment_count=Count('comments')).order_by('-pub_date')
+        return queryset
+    
+    def get_object(self, queryset=None):
+        obj = super().get_object(queryset)
+        if not obj.is_published and obj.author != self.request.user:
+            raise Http404("Страница не найдена")
+        return obj
+
+
+class ProfileListView(ListView):
+    model = Post
+    template_name = 'blog/profile.html'
+    ordering = 'id'
+    paginate_by = 10
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['profile'] = get_object_or_404(User, username=self.kwargs.get(
+            'username'
+        ))
+        return context
+
+    def get_queryset(self):
+        author = get_object_or_404(User, username=self.kwargs.get('username'))
+        instance = author.posts.filter(
+            author__username__exact=self.kwargs.get('username')
+        ).annotate(
+            comment_count=Count('comments')
+        ).order_by('-pub_date')
+        return instance
+    
+    def get_object(self, queryset=None):
+        obj = super().get_object(queryset)
+        if not obj.is_published and obj.author != self.request.user:
+            raise Http404("Страница не найдена")
+        return obj
 
 
 class PostUpdateView(LoginRequiredMixin, UpdateView):
