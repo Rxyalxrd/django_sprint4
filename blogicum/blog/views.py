@@ -1,15 +1,15 @@
+from blog.forms import CommentForm, PostForm, UserForm
+from blog.models import Category, Comment, Post, User
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils import timezone as tz
 from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
                                   UpdateView)
 
-from blog.forms import CommentForm, PostForm, UserForm
-from blog.models import Category, Comment, Post, User
-from django.http import Http404
 
 @login_required
 def add_comment(request, post_id):
@@ -64,6 +64,29 @@ class IndexListView(ListView):
     paginate_by = 10
 
 
+class ProfileListView(ListView):
+    model = Post
+    template_name = 'blog/profile.html'
+    ordering = 'id'
+    paginate_by = 10
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['profile'] = get_object_or_404(User, username=self.kwargs.get(
+            'username'
+        ))
+        return context
+
+    def get_queryset(self):
+        author = get_object_or_404(User, username=self.kwargs.get('username'))
+        instance = author.posts.filter(
+            author__username__exact=self.kwargs.get('username')
+        ).annotate(
+            comment_count=Count('comments')
+        ).order_by('-pub_date')
+        return instance
+
+
 class ProfileUpdateView(LoginRequiredMixin, UpdateView):
     model = User
     form_class = UserForm
@@ -97,7 +120,6 @@ class PostCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.author = self.request.user
-        # Если pub_date задано в будущем, то сохраняем пост как отложенный
         if form.instance.pub_date and form.instance.pub_date > tz.now():
             form.instance.is_published = False
         return super().form_valid(form)
@@ -118,11 +140,16 @@ class PostDetailView(DetailView):
                 post_id__category__is_published=True,
             )
         )
+
         return context
-    
+
     def get_object(self, queryset=None):
         obj = super().get_object(queryset)
-        if not obj.is_published and obj.author != self.request.user:
+        if (obj.author != self.request.user
+            and not (obj.is_published
+                     and obj.category.is_published
+                     and obj.pub_date <= tz.now()
+                     )):
             raise Http404("Страница не найдена")
         return obj
 
@@ -153,41 +180,6 @@ class CategoryListView(ListView):
             is_published=True,
         ).annotate(comment_count=Count('comments')).order_by('-pub_date')
         return queryset
-    
-    def get_object(self, queryset=None):
-        obj = super().get_object(queryset)
-        if not obj.is_published and obj.author != self.request.user:
-            raise Http404("Страница не найдена")
-        return obj
-
-
-class ProfileListView(ListView):
-    model = Post
-    template_name = 'blog/profile.html'
-    ordering = 'id'
-    paginate_by = 10
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['profile'] = get_object_or_404(User, username=self.kwargs.get(
-            'username'
-        ))
-        return context
-
-    def get_queryset(self):
-        author = get_object_or_404(User, username=self.kwargs.get('username'))
-        instance = author.posts.filter(
-            author__username__exact=self.kwargs.get('username')
-        ).annotate(
-            comment_count=Count('comments')
-        ).order_by('-pub_date')
-        return instance
-    
-    def get_object(self, queryset=None):
-        obj = super().get_object(queryset)
-        if not obj.is_published and obj.author != self.request.user:
-            raise Http404("Страница не найдена")
-        return obj
 
 
 class PostUpdateView(LoginRequiredMixin, UpdateView):
