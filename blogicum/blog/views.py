@@ -12,6 +12,7 @@ from blog.forms import CommentForm, PostForm, UserForm
 from blog.models import Category, Comment, Post, User
 from core.const import TEN_PUB
 
+
 @login_required
 def add_comment(request, post_id):
     comment = get_object_or_404(Post, pk=post_id)
@@ -58,6 +59,22 @@ class DispatchMixin:
         if self.posts.author != request.user:
             return redirect('blog:post_detail', self.kwargs.get('post_id'))
         return super().dispatch(request, *args, **kwargs)
+
+
+class IsEditMixin:
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['is_edit'] = True
+        return context
+
+
+class IsDeleteMixin:
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['is_delete'] = True
+        return context
 
 
 class IndexListView(ListView):
@@ -189,17 +206,12 @@ class CategoryListView(ListView):
         return queryset
 
 
-class PostUpdateView(LoginRequiredMixin, UpdateView):
+class PostUpdateView(LoginRequiredMixin, UpdateView, IsEditMixin):
     model = Post
     form_class = PostForm
     template_name = 'blog/create.html'
     pk_url_kwarg = 'post_id'
     posts = None
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['is_edit'] = True
-        return context
 
     def dispatch(self, request, *args, **kwargs):
         self.posts = get_object_or_404(Post, pk=kwargs.get('post_id'))
@@ -212,16 +224,11 @@ class PostUpdateView(LoginRequiredMixin, UpdateView):
                             kwargs={'pk': self.posts.pk})
 
 
-class PostDeleteView(LoginRequiredMixin, DeleteView):
+class PostDeleteView(LoginRequiredMixin, DeleteView, IsDeleteMixin):
     model = Post
     template_name = 'blog/create.html'
     success_url = reverse_lazy('blog:index')
     pk_url_kwarg = 'post_id'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['is_delete'] = True
-        return context
 
     def dispatch(self, request, *args, **kwargs):
         instance = get_object_or_404(Post, pk=kwargs.get('post_id'))
@@ -230,17 +237,13 @@ class PostDeleteView(LoginRequiredMixin, DeleteView):
         return super().dispatch(request, *args, **kwargs)
 
 
-class CommentUpdateView(LoginRequiredMixin, CommentMixin, UpdateView):
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['is_edit'] = True
-        return context
+class CommentUpdateView(LoginRequiredMixin, CommentMixin,
+                        UpdateView, IsEditMixin
+                        ):
+    pass
 
 
-class CommentDeleteView(LoginRequiredMixin, CommentMixin, DeleteView):
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['is_delete'] = True
-        return context
+class CommentDeleteView(LoginRequiredMixin, CommentMixin,
+                        DeleteView, IsDeleteMixin
+                        ):
+    pass
