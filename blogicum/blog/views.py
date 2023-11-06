@@ -1,15 +1,16 @@
-from blog.forms import CommentForm, PostForm, UserForm
-from blog.models import Category, Comment, Post, User
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
 from django.utils import timezone as tz
 from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
                                   UpdateView)
 
+from blog.forms import CommentForm, PostForm, UserForm
+from blog.models import Category, Comment, Post, User
+from core.const import TEN_PUB
 
 @login_required
 def add_comment(request, post_id):
@@ -50,6 +51,15 @@ class CommentMixin:
                             kwargs={'pk': self.kwargs.get('post_id')})
 
 
+class DispatchMixin:
+
+    def dispatch(self, request, *args, **kwargs):
+        self.posts = get_object_or_404(Post, pk=kwargs.get('post_id'))
+        if self.posts.author != request.user:
+            return redirect('blog:post_detail', self.kwargs.get('post_id'))
+        return super().dispatch(request, *args, **kwargs)
+
+
 class IndexListView(ListView):
     model = Post
     queryset = Post.objects.prefetch_related(
@@ -61,14 +71,14 @@ class IndexListView(ListView):
     ).annotate(comment_count=Count('comments'))
     template_name = 'blog/index.html'
     ordering = '-pub_date'
-    paginate_by = 10
+    paginate_by = TEN_PUB
 
 
 class ProfileListView(ListView):
     model = Post
     template_name = 'blog/profile.html'
     ordering = 'id'
-    paginate_by = 10
+    paginate_by = TEN_PUB
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -102,7 +112,7 @@ class ProfileUpdateView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
     def get_success_url(self):
-        return reverse_lazy(
+        return reverse(
             'blog:profile',
             kwargs={'username': self.request.user.username})
 
@@ -120,16 +130,13 @@ class PostCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.author = self.request.user
-        if form.instance.pub_date and form.instance.pub_date > tz.now():
-            form.instance.is_published = False
         return super().form_valid(form)
 
 
 class PostDetailView(DetailView):
     model = Post
     template_name = 'blog/detail.html'
-    ordering = ('-pub_date',)
-    paginate_by = 10
+    paginate_by = TEN_PUB
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
